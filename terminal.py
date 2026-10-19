@@ -33,7 +33,16 @@ def env(name, default=""):
 
 TZ = ZoneInfo(env("TIMEZONE", "America/New_York"))
 STATE_PATH = env("STATE_PATH", "state/state.enc")
-BOT_TOKEN = env("TELEGRAM_BOT_TOKEN")
+TOKEN_RE = re.compile(r"\d{5,}:[A-Za-z0-9_-]{30,}")
+
+
+def _clean_token(t):
+    """Pull the bare BotFather token out of whatever was pasted (spaces, "bot" prefix, full URL)."""
+    m = TOKEN_RE.search(t or "")
+    return m.group(0) if m else (t or "").strip()
+
+
+BOT_TOKEN = _clean_token(env("TELEGRAM_BOT_TOKEN"))
 URGENT_SCORE = int(env("URGENT_SCORE", "8"))
 BRIEF_SCORE = int(env("BRIEF_SCORE", "5"))
 QUIET_START = int(env("QUIET_START", "1"))   # hour, local time
@@ -766,5 +775,11 @@ if __name__ == "__main__":
         log("No AI key set (GROQ_API_KEY or GEMINI_API_KEY). Items will be collected but not scored.")
     if not BOT_TOKEN:
         log("No TELEGRAM_BOT_TOKEN set. Running dry.")
+    else:
+        raw = env("TELEGRAM_BOT_TOKEN")
+        me = tg("getMe")
+        log(f"telegram token check: pasted len {len(raw)}, cleaned len {len(BOT_TOKEN)}, "
+            f"format ok {bool(TOKEN_RE.fullmatch(BOT_TOKEN))}, "
+            f"getMe ok {me.get('ok')} {(me.get('result') or {}).get('username', '')}")
     main()
     sys.exit(0)
