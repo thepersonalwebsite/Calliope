@@ -39,7 +39,7 @@ Optional secrets: `GEMINI_API_KEY` (backup AI if Groq is down), `SEC_USER_AGENT`
 | `/status` | health, broken sources, AI usage |
 | any text | standing instruction, like "less crypto" |
 
-Quiet hours are 1 AM to 7 AM. Only a 10 gets through. The rest waits for the 8 AM brief.
+Quiet hours are 12:30 AM to 6 AM. Nothing is sent, not even a 10. It all waits for the morning brief. Change with the QUIET_START and QUIET_END variables, like 00:30 and 06:00.
 
 ## Privacy
 

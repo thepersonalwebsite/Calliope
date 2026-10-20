@@ -45,8 +45,15 @@ def _clean_token(t):
 BOT_TOKEN = _clean_token(env("TELEGRAM_BOT_TOKEN"))
 URGENT_SCORE = int(env("URGENT_SCORE", "8"))
 BRIEF_SCORE = int(env("BRIEF_SCORE", "5"))
-QUIET_START = int(env("QUIET_START", "1"))   # hour, local time
-QUIET_END = int(env("QUIET_END", "7"))
+def _minutes(v):
+    """'00:30' or '6' -> minutes after midnight, local time."""
+    h, _, m = str(v).partition(":")
+    return int(h) * 60 + int(m or 0)
+
+
+QUIET_START = _minutes(env("QUIET_START", "00:30"))   # no pushes or briefs from here...
+QUIET_END = _minutes(env("QUIET_END", "06:00"))       # ...until here
+
 MAX_URGENT_PER_HOUR = int(env("MAX_URGENT_PER_HOUR", "4"))
 TRIAGE_BATCH = int(env("TRIAGE_BATCH", "25"))
 TRIAGE_MAX_WAIT_MIN = int(env("TRIAGE_MAX_WAIT_MIN", "15"))
@@ -636,9 +643,10 @@ def mark_sent(state, it):
 
 
 def quiet(local):
+    now = local.hour * 60 + local.minute
     if QUIET_START <= QUIET_END:
-        return QUIET_START <= local.hour < QUIET_END
-    return local.hour >= QUIET_START or local.hour < QUIET_END
+        return QUIET_START <= now < QUIET_END
+    return now >= QUIET_START or now < QUIET_END
 
 
 def send_brief(state, local, label=None):
@@ -669,6 +677,8 @@ def maybe_brief(state, local):
     if state.pop("force_brief", False):
         if not send_brief(state, local, "Brief on demand"):
             send(state, "Nothing new worth your time since the last brief.")
+        return
+    if quiet(local):
         return
     slots = [h for h in state["brief_hours"] if h <= local.hour]
     if not slots:
@@ -723,7 +733,7 @@ def route(state, it, local):
     state["urgent_log"] = [t for t in state["urgent_log"] if NOW - t < 3600]
     urgent = it["score"] >= URGENT_SCORE
     can_push = (not state["paused"]
-                and (not quiet(local) or it["score"] >= 10)
+                and not quiet(local)
                 and len(state["urgent_log"]) < MAX_URGENT_PER_HOUR)
     if urgent and can_push:
         push_urgent(state, it)
